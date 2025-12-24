@@ -9,7 +9,7 @@
     "build": "node ace build",
     "dev": "node ace serve --hmr",
     "test": "node ace test",
-    "lint": "eslint .",
+    "lint": "eslint . --ext=.ts",
     "format": "prettier --write .",
     "typecheck": "tsc --noEmit"
   },
@@ -66,5 +66,38 @@
       "./app/middleware/*.ts"
     ]
   },
+  "eslintConfig": {
+    "extends": [
+      "plugin:adonis/typescriptApp",
+      "prettier"
+    ],
+    "plugins": [
+      "prettier"
+    ],
+    "parserOptions": {
+      "ecmaVersion": 12
+    },
+    "rules": {
+      "prettier/prettier": [
+        "error"
+      ],
+      "@typescript-eslint/naming-convention": [
+        "error",
+        {
+          "selector": "variable",
+          "format": [
+            "camelCase",
+            "UPPER_CASE",
+            "snake_case"
+          ],
+          "leadingUnderscore": "allow",
+          "trailingUnderscore": "allow"
+        }
+      ]
+    }
+  },
+  "eslintIgnore": [
+    "build"
+  ],
   "prettier": "@adonisjs/prettier-config"
 }
