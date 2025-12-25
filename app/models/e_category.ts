@@ -26,10 +26,10 @@ export default class ECategory extends BaseModel {
   })
   declare market: BelongsTo<typeof EMarket>
 
-  @hasMany(() => EProduct, {
-    foreignKey: 'categoryId'
-  })
-  declare products: HasMany<typeof EProduct>
+  // @hasMany(() => EProduct, {
+  //   foreignKey: 'categoryId'
+  // })
+  // declare products: HasMany<typeof EProduct>
 
   // YENİ - Many-to-Many: Bu kategoriye ait tüm ürünler, pivot table için gerekli
   @manyToMany(() => EProduct, {

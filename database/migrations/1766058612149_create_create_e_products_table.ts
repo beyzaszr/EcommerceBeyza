@@ -6,8 +6,8 @@ export default class extends BaseSchema {
   async up() {
     this.schema.createTable(this.tableName, (table) => {
       table.bigIncrements('id').primary()
-      table.bigInteger('category_id').unsigned().nullable()
-        .references('id').inTable('e_categories').onDelete('SET NULL')
+      // table.bigInteger('category_id').unsigned().nullable()
+      //   .references('id').inTable('e_categories').onDelete('SET NULL')
       table.string('name').notNullable()
       table.text('description').nullable()
       table.decimal('price', 10, 2).notNullable()

@@ -143,9 +143,9 @@ export default class ECategoriesController {
       })
     }
 
-    // Kategoriye ait ürün var mı kontrol et
-    await category.load('products')
-    if (category.products.length > 0) {
+    // Kategoriye ait ürün var mı kontrol et (Many-to-Many ilişki için)
+    await category.load('relatedProducts')
+    if (category.relatedProducts.length > 0) {
       return response.status(400).json({ 
         message: 'Bu kategoriye ait ürünler bulunuyor. Önce ürünleri silin veya başka kategoriye taşıyın' 
       })

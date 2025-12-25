@@ -11,8 +11,8 @@ export default class EProduct extends BaseModel {
   @column({ isPrimary: true })
   declare id: number
 
-  @column()
-  public categoryId: number
+  // @column()
+  // public categoryId: number
 
   @column()
   declare marketId: number | null
@@ -38,11 +38,11 @@ export default class EProduct extends BaseModel {
   })
   declare market: BelongsTo<typeof EMarket>
 
-// 1 product 1 categoriye aitse burası
-  @belongsTo(() => ECategory, {
-    foreignKey: 'categoryId'
-  })
-  declare category: BelongsTo<typeof ECategory>
+// // 1 product 1 categoriye aitse burası
+//   @belongsTo(() => ECategory, {
+//     foreignKey: 'categoryId'
+//   })
+//   declare category: BelongsTo<typeof ECategory>
 
 // Birden fazla kategori (YENİ - Many-to-Many ilişkisi için, pivot table 'ara tablo' için)
   @manyToMany(() => ECategory, {

@@ -10,8 +10,7 @@ export default class EProductsController {
   public async E_index({ response }: HttpContext) {
     try {
       const products = await EProduct.query()
-        .preload('category') // Mevcut kategori ilişkisi 'Ana kategori'
-        .preload('categories') // YENİ - Many-to-Many ilişkisi için kategorileri de yüklüyoruz
+        .preload('categories') // Sadece many-to-many kategoriler
         .orderBy('id', 'desc')
 
       return response.json({
@@ -34,9 +33,8 @@ export default class EProductsController {
    */
   public async E_store({ request, response }: HttpContext) {
     // Request verilerini al
-    const { categoryId,categoryIds, name, description, price, stock, isActive } = request.only([
-      'categoryId',
-      'categoryIds', // Many-to-Many için, birden fazla kategori id'si için array
+    const { categoryIds, name, description, price, stock, isActive } = request.only([
+      'categoryIds',
       'name',
       'description',
       'price',
@@ -57,26 +55,25 @@ export default class EProductsController {
       })
     }
 
-    // En az bir kategori gerekli (ya categoryId ya da categoryIds)
-    if (!categoryId && (!categoryIds || categoryIds.length === 0)) {
+    // En az bir kategori gerekli
+    if (!categoryIds || !Array.isArray(categoryIds) || categoryIds.length === 0) {
       return response.status(400).json({ 
         message: 'En az bir kategori seçilmelidir' 
       })
     }
 
-    // Ana kategori kontrolü
-    if (categoryId) {
-      const category = await ECategory.find(categoryId)
-      if (!category) {
-        return response.status(404).json({ 
-          message: 'Ana kategori bulunamadı' 
+    try {
+      // Tüm kategori ID'lerin geçerli olduğunu kontrol et
+      const categories = await ECategory.query().whereIn('id', categoryIds)
+      
+      if (categories.length !== categoryIds.length) {
+        return response.status(400).json({ 
+          message: 'Bazı kategori ID\'leri geçersiz' 
         })
       }
-    }
 
-    try {
+      // Ürünü oluştur (categoryId olmadan)
       const product = await EProduct.create({
-        categoryId: categoryId || null,
         name: name.trim(),
         description: description?.trim() || null,
         price: parseFloat(price),
@@ -84,26 +81,10 @@ export default class EProductsController {
         isActive: isActive !== undefined ? isActive : true
       })
 
-      // Kategorileri ekle (pivot table'a)
-      if (categoryIds && Array.isArray(categoryIds) && categoryIds.length > 0) {
-        // Tüm kategori ID'lerin geçerli olduğunu kontrol et
-        const categories = await ECategory.query().whereIn('id', categoryIds)
-        
-        if (categories.length !== categoryIds.length) {
-          return response.status(400).json({ 
-            message: 'Bazı kategori ID\'leri geçersiz' 
-          })
-        }
-
-        // Kategorileri ürüne bağla
-        await product.related('categories').attach(categoryIds)
-      } else if (categoryId) {
-        // Eğer sadece ana kategori varsa, onu da pivot table'a ekle
-        await product.related('categories').attach([categoryId])
-      }
+      // Kategorileri ürüne bağla (pivot table'a ekle)
+      await product.related('categories').attach(categoryIds)
 
       // İlişkileri yükle
-      await product.load('category')
       await product.load('categories')
 
       return response.status(201).json({
@@ -136,9 +117,8 @@ export default class EProductsController {
     }
 
     // Request verilerini al
-    const { categoryId, categoryIds, name, description, price, stock, isActive } = request.only([
-      'categoryId',
-      'categoryIds', // kategori güncelleme için, Many-to-Many
+    const { categoryIds, name, description, price, stock, isActive } = request.only([
+      'categoryIds',
       'name',
       'description',
       'price',
@@ -159,19 +139,8 @@ export default class EProductsController {
       })
     }
 
-    // Ana Kategori değişiyorsa, yeni kategori var mı kontrol et
-    if (categoryId && categoryId !== product.categoryId) {
-      const category = await ECategory.find(categoryId)
-      if (!category) {
-        return response.status(404).json({ 
-          message: 'Seçilen kategori bulunamadı' 
-        })
-      }
-    }
-
     try {
-      // Güncelle
-      if (categoryId !== undefined) product.categoryId = categoryId
+      // Ürün bilgilerini güncelle
       if (name) product.name = name.trim()
       if (description !== undefined) product.description = description?.trim() || null
       if (price) product.price = parseFloat(price)
@@ -180,22 +149,7 @@ export default class EProductsController {
 
       await product.save()
 
-    //   // Kategori bilgisini yükle
-    //   await product.load('category')
-
-    //   return response.json({
-    //     message: 'Ürün başarıyla güncellendi',
-    //     data: product,
-    //   })
-    // } catch (error) {
-    //   console.error('Product update error:', error)
-    //   return response.status(500).json({
-    //     message: 'Ürün güncellenirken hata oluştu',
-    //     error: String(error)
-    //   })
-    // }
-
-// Kategorileri güncelle (pivot table)
+      // Kategorileri güncelle (pivot table)
       if (categoryIds && Array.isArray(categoryIds)) {
         // Tüm kategori ID'lerin geçerli olduğunu kontrol et
         const categories = await ECategory.query().whereIn('id', categoryIds)
@@ -211,7 +165,6 @@ export default class EProductsController {
       }
 
       // İlişkileri yükle
-      await product.load('category')
       await product.load('categories')
 
       return response.json({
@@ -314,7 +267,6 @@ export default class EProductsController {
         error: String(error)
       })
     }
-
   }
 
   /**
@@ -341,20 +293,7 @@ export default class EProductsController {
       })
     }
 
-    // try {
-    //   await product.delete()
-
-    //   return response.json({
-    //     message: 'Ürün başarıyla silindi',
-    //   })
-    // } catch (error) {
-    //   console.error('Product delete error:', error)
-    //   return response.status(500).json({
-    //     message: 'Ürün silinirken hata oluştu',
-    //     error: String(error)
-    //   })
-    // }
-try {
+    try {
       // Önce pivot table'dan ilişkileri sil
       await product.related('categories').detach()
       
@@ -371,6 +310,5 @@ try {
         error: String(error)
       })
     }
-
   }
 }

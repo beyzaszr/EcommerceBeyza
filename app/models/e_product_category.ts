@@ -10,9 +10,6 @@ export default class EProductCategory extends BaseModel {
   @column({ isPrimary: true })
   declare id: number
 
-@column({ isPrimary: true })
-  declare id: number
-
   @column()
   declare productId: number
 
