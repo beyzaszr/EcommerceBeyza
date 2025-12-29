@@ -7,11 +7,11 @@
 |
 */
 
-import TestController from '#controllers/Http/TestController'
-import UsersController from '#controllers/users_controller'
-import TestTaskController from '#controllers/Http/TestTaskController'
-import TasksController from '#controllers/tasks_controller'
-import TasksControllerV2 from '#controllers/tasks_controller_v2'
+// import TestController from '#controllers/Http/TestController'
+// import UsersController from '#controllers/users_controller'
+// import TestTaskController from '#controllers/Http/TestTaskController'
+// import TasksController from '#controllers/tasks_controller'
+// import TasksControllerV2 from '#controllers/tasks_controller_v2'
 import AuthController from '#controllers/auth_controller'
 import router from '@adonisjs/core/services/router'
 //e ticaret için oluşturuldu
@@ -29,24 +29,24 @@ router.get('/', async () => {
   }
 })
 
-router.get('/test-user', [TestController, 'show'])
-router.post('/registerUser', [UsersController, 'registerUser'])
-router.post('/login', [UsersController, 'login'])
+// router.get('/test-user', [TestController, 'show'])
+// router.post('/registerUser', [UsersController, 'registerUser'])
+// router.post('/login', [UsersController, 'login'])
 
-router.get('/test-task', [TestTaskController, 'show'])
-router.post('/set-task', [TasksController, 'setTask'])
+// router.get('/test-task', [TestTaskController, 'show'])
+// router.post('/set-task', [TasksController, 'setTask'])
 
-//router.get('/get-tasks', [TasksController, 'index'])
-router.post('/set-tasks', [TasksController, 'store'])
-router.post('/update-tasks/:id', [TasksController, 'update'])
-router.delete('/tasks/:id', [TasksController, 'destroy'])
+// //router.get('/get-tasks', [TasksController, 'index'])
+// router.post('/set-tasks', [TasksController, 'store'])
+// router.post('/update-tasks/:id', [TasksController, 'update'])
+// router.delete('/tasks/:id', [TasksController, 'destroy'])
 
 
-//Son versiyon
-router.get('/get-tasks', [TasksControllerV2, 'getTasks'])
-router.post('/create-tasks', [TasksControllerV2, 'createTasks'])
-router.post('/update-tasks', [TasksControllerV2, 'updateTasks'])
-router.delete('/delate-tasks/:id', [TasksControllerV2, 'deleteTasks'])
+// //Son versiyon
+// router.get('/get-tasks', [TasksControllerV2, 'getTasks'])
+// router.post('/create-tasks', [TasksControllerV2, 'createTasks'])
+// router.post('/update-tasks', [TasksControllerV2, 'updateTasks'])
+// router.delete('/delate-tasks/:id', [TasksControllerV2, 'deleteTasks'])
 
 //AUTH CONTROLLER İÇİN E TİCARET SİTESİ İÇİN YAZILDI
 router.post('/e-register', [AuthController, 'eRegister'])
