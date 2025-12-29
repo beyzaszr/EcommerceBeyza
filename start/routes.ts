@@ -12,7 +12,7 @@
 // import TestTaskController from '#controllers/Http/TestTaskController'
 // import TasksController from '#controllers/tasks_controller'
 // import TasksControllerV2 from '#controllers/tasks_controller_v2'
-import AuthController from '#controllers/AuthController'
+import AuthController from '#controllers/authController'
 import router from '@adonisjs/core/services/router'
 //e ticaret için oluşturuldu
 import ECategoriesController from '#controllers/eCategoriesController'
