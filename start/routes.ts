@@ -12,15 +12,15 @@
 // import TestTaskController from '#controllers/Http/TestTaskController'
 // import TasksController from '#controllers/tasks_controller'
 // import TasksControllerV2 from '#controllers/tasks_controller_v2'
-import AuthController from '#controllers/auth_controller'
+import AuthController from '#controllers/AuthController'
 import router from '@adonisjs/core/services/router'
 //e ticaret için oluşturuldu
-import ECategoriesController from '#controllers/e_categories_controller'
-import EProductsController from '#controllers/e_products_controller'
-import EOrdersController from '#controllers/e_orders_controller'
-import ECartsController from '#controllers/e_carts_controller'
-import EAddressesController from '#controllers/e_addresses_controller'
-import EMarketsController from '#controllers/e_markets_controller'
+import ECategoriesController from '#controllers/eCategoriesController'
+import EProductsController from '#controllers/eProductsController'
+import EOrdersController from '#controllers/eOrdersController'
+import ECartsController from '#controllers/eCartsController'
+import EAddressesController from '#controllers/eAddressesController'
+import EMarketsController from '#controllers/eMarketsController'
 import {middleware} from '#start/kernel' 
 
 router.get('/', async () => {
