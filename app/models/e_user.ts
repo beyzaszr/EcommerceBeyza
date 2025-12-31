@@ -1,6 +1,6 @@
 import { DateTime } from 'luxon'
 import { BaseModel, column, hasMany, hasOne} from '@adonisjs/lucid/orm'
-import type { HasMany,HasOne } from '@adonisjs/lucid/orm'
+import type { HasMany,HasOne } from '@adonisjs/lucid/types/relations'
 import EOrder from '#models/e_order'
 import EAddress from '#models/e_address'
 import EMarket from '#models/e_market'

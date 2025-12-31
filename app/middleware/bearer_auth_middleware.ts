@@ -153,6 +153,7 @@ export default class BearerAuthMiddleware {
 //     await next()
 //   }
 // }
+/*
 import type { HttpContext } from '@adonisjs/core/http'
 import User from '#models/user'
 import UserToken from '#models/user_token'
@@ -162,7 +163,7 @@ import EUserToken from '#models/e_user_token'
 export default class BearerAuthMiddleware {
   public async handle(ctx: HttpContext, next: () => Promise<void>) {
     // Public rotaları atlat
-    const publicPaths = ['/set-email', '/login', '/registerUser', '/e-register', '/e-login']
+    const publicPaths = ['/e-register', '/e-login']
     const reqPath = ctx.request.url() || (ctx.request as any).path?.() || ''
     
     if (publicPaths.some((p) => reqPath.startsWith(p))) {
@@ -210,6 +211,38 @@ export default class BearerAuthMiddleware {
     }
 
     ;(ctx as any).user = user
+    await next()
+  }
+}
+*/
+import type { HttpContext } from '@adonisjs/core/http'
+import type { NextFn } from '@adonisjs/core/types/http'
+import EUser from '#models/e_user'
+import EUserToken from '#models/e_user_token'
+
+export default class BearerAuthMiddleware {
+  async handle(ctx: HttpContext, next: NextFn) {
+    const authHeader = ctx.request.header('Authorization')
+
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return ctx.response.status(401).json({ message: 'Unauthorized' })
+    }
+
+    const token = authHeader.substring(7)
+
+    const userToken = await EUserToken.findBy('token', token)
+    if (!userToken) {
+      return ctx.response.status(401).json({ message: 'Invalid token' })
+    }
+
+    const user = await EUser.find(userToken.userId)
+    if (!user) {
+      return ctx.response.status(401).json({ message: 'User not found' })
+    }
+
+    // Context'e user bilgisini ekle
+    ;(ctx as any).user = user
+
     await next()
   }
 }

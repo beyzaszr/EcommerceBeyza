@@ -1,6 +1,6 @@
 import { DateTime } from 'luxon'
 import { BaseModel, column, hasMany, manyToMany, belongsTo } from '@adonisjs/lucid/orm'
-import type { HasMany, ManyToMany, BelongsTo  } from '@adonisjs/lucid/orm'
+import type { HasMany, ManyToMany, BelongsTo  } from '@adonisjs/lucid/types/relations'
 import EProduct from '#models/e_product'
 import EMarket from '#models/e_market'
 
