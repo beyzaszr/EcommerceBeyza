@@ -222,6 +222,16 @@ import EUserToken from '#models/e_user_token'
 
 export default class BearerAuthMiddleware {
   async handle(ctx: HttpContext, next: NextFn) {
+    // Public rotaları atlat (eski kodunuzdaki gibi)
+    const publicPaths = ['/e-register', '/e-login']
+    const reqPath = ctx.request.url()
+    
+    // Public path kontrolü
+    if (publicPaths.some((p) => reqPath === p || reqPath.startsWith(p))) {
+      return next()
+    }
+
+    // Authorization header kontrolü
     const authHeader = ctx.request.header('Authorization')
 
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
@@ -230,11 +240,13 @@ export default class BearerAuthMiddleware {
 
     const token = authHeader.substring(7)
 
+    // Token kontrolü
     const userToken = await EUserToken.findBy('token', token)
     if (!userToken) {
       return ctx.response.status(401).json({ message: 'Invalid token' })
     }
 
+    // User kontrolü
     const user = await EUser.find(userToken.userId)
     if (!user) {
       return ctx.response.status(401).json({ message: 'User not found' })
