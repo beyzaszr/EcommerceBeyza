@@ -1,17 +1,52 @@
 import type { HttpContext } from '@adonisjs/core/http'
 import EProduct from '#models/e_product'
 import ECategory from '#models/e_category'
+import EMarket from '#models/e_market'
 
 export default class EProductsController {
   /**
    * Tüm ürünleri listele
    * GET /admin/products
    */
-  public async E_index({ response }: HttpContext) {
+  public async E_index({ response }: HttpContext & { user?: any }) {
+    const ctx = arguments[0] as any
+    const user = ctx.user
+
+    if (!user) {
+      return response.status(401).json({ 
+        message: 'Oturum bulunamadı' 
+      })
+    }
+
     try {
-      const products = await EProduct.query()
-        .preload('categories') // Sadece many-to-many kategoriler
-        .orderBy('id', 'desc')
+      const query = EProduct.query().preload('categories')
+      
+      // Seller sadece kendi mağazasının ürünlerini görebilir
+      if (user.role === 'seller') {
+        const market = await EMarket.findBy('userId', user.id)
+        if (!market) {
+          return response.json({ 
+            message: 'Mağazanız bulunamadı',
+            data: [], 
+            count: 0 
+          })
+        }
+        query.where('marketId', market.id)
+
+        query.preload('market')
+      }
+      // Admin tüm ürünleri görebilir (marketId filtresi yok)
+
+      const products = await query.orderBy('id', 'desc')
+
+        // ✅ Admin için marketId null olmayanlar için market'i yükle
+      if (user.role === 'admin') {
+        for (const product of products) {
+          if (product.marketId !== null) {
+            await product.load('market')
+          }
+        }
+      }
 
       return response.json({
         message: 'Ürünler listelendi',
@@ -31,7 +66,16 @@ export default class EProductsController {
    * Yeni ürün oluştur
    * POST /admin/products
    */
-  public async E_store({ request, response }: HttpContext) {
+  public async E_store({ request, response }: HttpContext & { user?: any }) {
+    const ctx = arguments[0] as any
+    const user = ctx.user
+
+    if (!user) {
+      return response.status(401).json({ 
+        message: 'Oturum bulunamadı' 
+      })
+    }
+
     // Request verilerini al
     const { categoryIds, name, description, price, stock, isActive } = request.only([
       'categoryIds',
@@ -63,6 +107,26 @@ export default class EProductsController {
     }
 
     try {
+      let marketId: number | null = null
+
+      // Seller kendi mağazasına ürün ekler
+      if (user.role === 'seller') {
+        const market = await EMarket.findBy('userId', user.id)
+        if (!market) {
+          return response.status(403).json({ 
+            message: 'Mağazanız bulunamadı' 
+          })
+        }
+        if (!market.isVerified) {
+          return response.status(403).json({ 
+            message: 'Mağazanız henüz onaylanmamış. Ürün ekleyemezsiniz' 
+          })
+        }
+        marketId = market.id
+      }
+      // Admin marketId = null ile global ürün oluşturabilir
+
+
       // Tüm kategori ID'lerin geçerli olduğunu kontrol et
       const categories = await ECategory.query().whereIn('id', categoryIds)
       
@@ -72,20 +136,24 @@ export default class EProductsController {
         })
       }
 
-      // Ürünü oluştur (categoryId olmadan)
+    // ✅ Ürünü oluştur - marketId her zaman set edilir (null dahil)
       const product = await EProduct.create({
         name: name.trim(),
         description: description?.trim() || null,
         price: parseFloat(price),
         stock: stock !== undefined ? parseInt(stock) : 0,
-        isActive: isActive !== undefined ? isActive : true
+        isActive: isActive !== undefined ? isActive : true,
+        marketId: marketId  // null veya number değeri
       })
 
       // Kategorileri ürüne bağla (pivot table'a ekle)
       await product.related('categories').attach(categoryIds)
 
-      // İlişkileri yükle
       await product.load('categories')
+
+      if (product.marketId !== null) {
+      await product.load('market')
+    }
 
       return response.status(201).json({
         message: 'Ürün başarıyla oluşturuldu',
@@ -104,7 +172,15 @@ export default class EProductsController {
    * Ürün güncelle
    * POST /admin/products/:id
    */
-  public async E_update({ params, request, response }: HttpContext) {
+  public async E_update({ params, request, response }: HttpContext & { user?: any }) {
+    const ctx = arguments[0] as any
+    const user = ctx.user
+
+    if (!user) {
+      return response.status(401).json({ 
+        message: 'Oturum bulunamadı' 
+      })
+    }
     // URL parametresinden id al
     const productId = params.id
 
@@ -114,6 +190,22 @@ export default class EProductsController {
       return response.status(404).json({ 
         message: 'Ürün bulunamadı' 
       })
+    }
+
+    // Güvenlik: Seller sadece kendi mağazasının ürününü güncelleyebilir
+    if (user.role === 'seller') {
+      const market = await EMarket.findBy('userId', user.id)
+      if (!market) {
+        return response.status(403).json({ 
+          message: 'Mağazanız bulunamadı' 
+        })
+      }
+      
+      if (product.marketId !== market.id) {
+        return response.status(403).json({ 
+          message: 'Bu ürünü düzenleme yetkiniz yok' 
+        })
+      }
     }
 
     // Request verilerini al
@@ -167,6 +259,10 @@ export default class EProductsController {
       // İlişkileri yükle
       await product.load('categories')
 
+      if (product.marketId !== null) {
+      await product.load('market')
+    }
+    
       return response.json({
         message: 'Ürün başarıyla güncellendi',
         data: product,
@@ -184,7 +280,16 @@ export default class EProductsController {
    * Ürüne kategori ekle
    * POST /admin/products/:id/add-categories
    */
-  public async addCategories({ params, request, response }: HttpContext) {
+  public async addCategories({ params, request, response }: HttpContext & { user?: any }) {
+    const ctx = arguments[0] as any
+    const user = ctx.user
+
+    if (!user) {
+      return response.status(401).json({ 
+        message: 'Oturum bulunamadı' 
+      })
+    }
+    
     const productId = params.id
     const { categoryIds } = request.only(['categoryIds'])
 
@@ -199,6 +304,22 @@ export default class EProductsController {
       return response.status(404).json({ 
         message: 'Ürün bulunamadı' 
       })
+    }
+
+        // Güvenlik: Seller sadece kendi mağazasının ürününe kategori ekleyebilir
+    if (user.role === 'seller') {
+      const market = await EMarket.findBy('userId', user.id)
+      if (!market) {
+        return response.status(403).json({ 
+          message: 'Mağazanız bulunamadı' 
+        })
+      }
+      
+      if (product.marketId !== market.id) {
+        return response.status(403).json({ 
+          message: 'Bu ürüne kategori ekleme yetkiniz yok' 
+        })
+      }
     }
 
     try {
@@ -233,7 +354,16 @@ export default class EProductsController {
    * Üründen kategori çıkar
    * POST /admin/products/:id/remove-categories
    */
-  public async removeCategories({ params, request, response }: HttpContext) {
+  public async removeCategories({ params, request, response }: HttpContext & { user?: any }) {
+    const ctx = arguments[0] as any
+    const user = ctx.user
+
+    if (!user) {
+      return response.status(401).json({ 
+        message: 'Oturum bulunamadı' 
+      })
+    }
+
     const productId = params.id
     const { categoryIds } = request.only(['categoryIds'])
 
@@ -248,6 +378,22 @@ export default class EProductsController {
       return response.status(404).json({ 
         message: 'Ürün bulunamadı' 
       })
+    }
+
+    // Güvenlik: Seller sadece kendi mağazasının ürününden kategori çıkarabilir
+    if (user.role === 'seller') {
+      const market = await EMarket.findBy('userId', user.id)
+      if (!market) {
+        return response.status(403).json({ 
+          message: 'Mağazanız bulunamadı' 
+        })
+      }
+      
+      if (product.marketId !== market.id) {
+        return response.status(403).json({ 
+          message: 'Bu üründen kategori çıkarma yetkiniz yok' 
+        })
+      }
     }
 
     try {
@@ -273,7 +419,16 @@ export default class EProductsController {
    * Ürün sil
    * DELETE /admin/products/:id
    */
-  public async E_destroy({ params, response }: HttpContext) {
+  public async E_destroy({ params, response }: HttpContext & { user?: any }) {
+    const ctx = arguments[0] as any
+    const user = ctx.user
+
+    if (!user) {
+      return response.status(401).json({ 
+        message: 'Oturum bulunamadı' 
+      })
+    }
+
     // URL parametresinden id al
     const productId = params.id
 
@@ -283,6 +438,22 @@ export default class EProductsController {
       return response.status(404).json({ 
         message: 'Ürün bulunamadı' 
       })
+    }
+
+    // Güvenlik: Seller sadece kendi mağazasının ürününü silebilir
+    if (user.role === 'seller') {
+      const market = await EMarket.findBy('userId', user.id)
+      if (!market) {
+        return response.status(403).json({ 
+          message: 'Mağazanız bulunamadı' 
+        })
+      }
+      
+      if (product.marketId !== market.id) {
+        return response.status(403).json({ 
+          message: 'Bu ürünü silme yetkiniz yok' 
+        })
+      }
     }
 
     // Ürün siparişlerde kullanılmış mı kontrol et

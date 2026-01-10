@@ -3,6 +3,8 @@ import { BaseModel, column, belongsTo } from '@adonisjs/lucid/orm'
 import type { BelongsTo } from '@adonisjs/lucid/types/relations'
 import EOrder from '#models/e_order'
 import EProduct from '#models/e_product'
+import EMarket from '#models/e_market'
+
 
 export default class EOrderItem extends BaseModel {
   public static table = 'e_order_items'
@@ -25,6 +27,9 @@ export default class EOrderItem extends BaseModel {
   @column()
   public totalPrice: number
 
+  @column()
+  declare marketId: number | null
+
   @belongsTo(() => EOrder, {
     foreignKey: 'orderId'
   })
@@ -35,6 +40,11 @@ export default class EOrderItem extends BaseModel {
     foreignKey: 'productId'
   })
   declare product: BelongsTo<typeof EProduct>
+
+  @belongsTo(() => EMarket, {
+    foreignKey: 'marketId'
+  })
+  declare market: BelongsTo<typeof EMarket>
   
   @column.dateTime({ autoCreate: true })
   declare createdAt: DateTime

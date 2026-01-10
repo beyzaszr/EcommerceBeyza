@@ -27,7 +27,7 @@ export default class AdminMiddleware {
       return response.status(401).json({ message: 'Önce giriş yapmalısınız' })
     }
 
-    if (user.role !== 'admin') {
+    if (user.role !== 'admin' && user.role !== 'seller') {
       return response.status(403).json({ message: 'Admin yetkisi gerekli' })
     }
 

@@ -3,6 +3,7 @@ import EOrder from '#models/e_order'
 import EOrderItem from '#models/e_order_item'
 import EProduct from '#models/e_product'
 import EAddress from '#models/e_address'
+import EMarket from '#models/e_market'
 import db from '@adonisjs/lucid/services/db'
 
 export default class ECartsController {
@@ -152,7 +153,8 @@ export default class ECartsController {
           productId: product.id,
           quantity: parseInt(quantity),
           unitPrice: product.price,
-          totalPrice: product.price * parseInt(quantity)
+          totalPrice: product.price * parseInt(quantity),
+          marketId: product.marketId
         })
       }
 
@@ -575,50 +577,76 @@ export default class ECartsController {
             throw new Error(`${product.name} için yetersiz stok. Mevcut: ${product.stock}, istenen: ${item.quantity}`)
           }
 
-          // Fiyat değişmiş mi kontrol et ve güncelle
-          if (product.price !== item.unitPrice) {
-            const orderItem = await EOrderItem.query({ client: trx })
-              .where('id', item.id)
-              .first()
-            
-            if (orderItem) {
-              orderItem.unitPrice = product.price
-              orderItem.totalPrice = product.price * item.quantity
-              await orderItem.save()
-            }
+         // Fiyat değişmiş mi kontrol et ve güncelle
+        const currentPrice = parseFloat(product.price.toString())
+        const itemPrice = parseFloat(item.unitPrice.toString())
+        
+        if (Math.abs(currentPrice - itemPrice) > 0.01) {
+          const orderItem = await EOrderItem.query({ client: trx })
+            .where('id', item.id)
+            .first()
+          
+          if (orderItem) {
+            orderItem.unitPrice = currentPrice
+            orderItem.totalPrice = parseFloat((currentPrice * item.quantity).toFixed(2))
+            await orderItem.save()
           }
+        }
+
+          // ✅ marketId'nin doğru olduğundan emin ol
+        // Eğer sepete eklerken marketId kaydedilmemişse burada güncelle
+        if (item.marketId !== product.marketId) {
+          const orderItem = await EOrderItem.query({ client: trx })
+            .where('id', item.id)
+            .first()
+          
+          if (orderItem) {
+            orderItem.marketId = product.marketId
+            await orderItem.save()
+          }
+        }
 
           // Stok güncelle
           product.stock -= item.quantity
           await product.save()
         }
 
-        // Sepet toplamını yeniden hesapla
-        const items = await EOrderItem.query({ client: trx })
-          .where('orderId', cart.id)
+    // ✅ Sepet toplamını yeniden hesapla - DÜZELTİLMİŞ VERSİYON
+      const items = await EOrderItem.query({ client: trx })
+        .where('orderId', cart.id)
 
-        const total = items.reduce((sum, item) => sum + item.totalPrice, 0)
-
-        // Sepeti siparişe dönüştür
-        const orderToUpdate = await EOrder.query({ client: trx })
-          .where('id', cart.id)
-          .first()
-
-        if (!orderToUpdate) {
-          throw new Error('Sepet bulunamadı')
+      // Her item'ın totalPrice'ını kesinlikle number'a çevir
+      let total = 0
+      for (const item of items) {
+        const itemPrice = parseFloat(item.totalPrice.toString())
+        if (!isNaN(itemPrice)) {
+          total += itemPrice
         }
+      }
 
-        orderToUpdate.status = 'pending'
-        orderToUpdate.addressId = addressId
-        orderToUpdate.totalPrice = total
-        await orderToUpdate.save()
+      // Toplamı 2 ondalık basamağa yuvarla
+      const finalTotal = parseFloat(total.toFixed(2))
 
-        return orderToUpdate
-      })
+      // Sepeti siparişe dönüştür
+      const orderToUpdate = await EOrder.query({ client: trx })
+        .where('id', cart.id)
+        .first()
+
+      if (!orderToUpdate) {
+        throw new Error('Sepet bulunamadı')
+      }
+
+      orderToUpdate.status = 'pending'
+      orderToUpdate.addressId = addressId
+      orderToUpdate.totalPrice = finalTotal
+      await orderToUpdate.save()
+
+      return orderToUpdate
+    })
 
       // Sipariş detaylarını yükle
       await order.load('items', (query) => {
-        query.preload('product')
+        query.preload('product').preload('market')
       })
       await order.load('address')
       await order.load('user')
@@ -643,11 +671,18 @@ export default class ECartsController {
     const items = await EOrderItem.query(trx ? { client: trx } : {})
       .where('orderId', orderId)
 
-    const total = items.reduce((sum, item) => sum + item.totalPrice, 0)
+    // ✅ Her item'ı kesinlikle number'a çevir ve topla
+    let total = 0
+    for (const item of items) {
+      const itemPrice = parseFloat(item.totalPrice.toString())
+      if (!isNaN(itemPrice)) {
+        total += itemPrice
+      }
+    }
 
     const cart = await EOrder.find(orderId, trx ? { client: trx } : {})
     if (cart) {
-      cart.totalPrice = total
+      cart.totalPrice = parseFloat(total.toFixed(2))
       await cart.save(trx ? { client: trx } : {})
     }
   }
