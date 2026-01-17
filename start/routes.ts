@@ -70,22 +70,22 @@ Route.get('/me', async ({ auth }) => {
 // Listele
 router
   .get('/admin/categories', [ECategoriesController, 'E_index'])
-  .use(middleware.admin())
+  .use(middleware.adminOrSeller())
 
 // Oluştur
 router
   .post('/admin/categories', [ECategoriesController, 'E_store'])
-  .use(middleware.admin())
+  .use(middleware.adminOrSeller())
 
 // Güncelle (POST)
 router
   .post('/admin/categories/:id', [ECategoriesController, 'E_update'])
-  .use(middleware.admin())
+  .use(middleware.adminOrSeller())
 
 // Sil (DELETE)
 router
   .delete('/admin/categories/:id', [ECategoriesController, 'E_destroy'])
-  .use(middleware.admin())
+  .use(middleware.adminOrSeller())
 
 /* =======================
    PRODUCTS (ADMIN)
@@ -94,32 +94,32 @@ router
 // Listele
 router
   .get('/admin/products', [EProductsController, 'E_index'])
-  .use(middleware.admin())
+  .use(middleware.adminOrSeller())
 
 // Oluştur
 router
   .post('/admin/products', [EProductsController, 'E_store'])
-  .use(middleware.admin())
+  .use(middleware.adminOrSeller())
 
 // Güncelle (POST)
 router
   .post('/admin/products/:id', [EProductsController, 'E_update'])
-  .use(middleware.admin())
+  .use(middleware.adminOrSeller())
 
 // Sil (DELETE)
 router
   .delete('/admin/products/:id', [EProductsController, 'E_destroy'])
-  .use(middleware.admin())
+  .use(middleware.adminOrSeller())
 
 // Ürüne kategori ekle
 router
   .post('/admin/products/:id/add-categories', [EProductsController, 'addCategories'])
-  .use(middleware.admin())
+  .use(middleware.adminOrSeller())
 
 // Üründen kategori çıkar
 router
   .post('/admin/products/:id/remove-categories', [EProductsController, 'removeCategories'])
-  .use(middleware.admin())
+  .use(middleware.adminOrSeller())
 /* =======================
    ORDERS (ADMIN)
 ======================= */
@@ -129,10 +129,34 @@ router
   .get('/admin/orders', [EOrdersController, 'E_index'])
   .use(middleware.admin())
 
+// Sipariş detayı (admin)
+router
+  .get('/admin/orders/:id', [EOrdersController, 'show'])
+  .use(middleware.admin())
+
 // Durum güncelle 
 router
   .post('/admin/orders/:id/update-status', [EOrdersController, 'updateStatus']) //pending', 'paid', 'canceled', 'shipped
   .use(middleware.admin())
+
+/* =======================
+   ORDERS (SELLER)
+======================= */
+
+// Seller kendi mağazasının siparişlerini listeleyebilir
+router
+  .get('/seller/orders', [EOrdersController, 'sellerOrders'])
+  .use(middleware.seller())
+
+// Seller sipariş detayını görebilir (sadece kendi mağazasının ürünlerini)
+router
+  .get('/seller/orders/:id', [EOrdersController, 'show'])
+  .use(middleware.seller())
+
+// Seller sadece 'shipped' durumuna geçirebilir
+router
+  .post('/seller/orders/:id/update-status', [EOrdersController, 'updateStatus'])
+  .use(middleware.seller())
 
 /* =======================
    ORDERS (CUSTOMER) 

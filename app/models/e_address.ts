@@ -11,22 +11,22 @@ export default class EAddress extends BaseModel {
   declare id: number
 
   @column()
-  public userId: number
+  declare userId: number
 
   @column()
-  public title: string
+  declare title: string
 
   @column()
-  public city: string
+  declare city: string
 
   @column()
-  public district: string
+  declare district: string
 
   @column()
-  public fullAddress: string
+  declare fullAddress: string
 
   @column()
-  public isDefault: boolean
+  declare isDefault: boolean
 
   @belongsTo(() => EUser, {
     foreignKey: 'userId'

@@ -11,14 +11,14 @@ export default class ECategory extends BaseModel {
   declare id: number
 
   @column()
-  public name: string
+  declare name: string
 
   // NULL ise global, değilse mağazaya özel
   @column()
   declare marketId: number | null
 
   @column()
-  public isActive: boolean
+  declare isActive: boolean
 
   // Mağaza ilişkisi
   @belongsTo(() => EMarket, {

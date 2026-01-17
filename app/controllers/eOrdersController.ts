@@ -3,6 +3,7 @@ import EOrder from '#models/e_order'
 import EOrderItem from '#models/e_order_item'
 import EProduct from '#models/e_product'
 import EAddress from '#models/e_address'
+import EMarket from '#models/e_market'
 import db from '@adonisjs/lucid/services/db'
 
 export default class EOrdersController {
@@ -10,16 +11,45 @@ export default class EOrdersController {
    * Admin: Tüm siparişleri listele
    * GET /admin/orders
    */
-  public async E_index({ response }: HttpContext) {
+  public async E_index({ response }: HttpContext & { user?: any }) {
+    const ctx = arguments[0] as any
+    const user = ctx.user
+
+    if (!user) {
+      return response.status(401).json({ 
+        message: 'Oturum bulunamadı' 
+      })
+    }
+
     try {
-      const orders = await EOrder.query()
+      const query = EOrder.query()
         .whereNot('status', 'cart')  // Sepetleri hariç tut
         .preload('user')
         .preload('address')
-        .preload('items', (query) => {
-          query.preload('product')
+        .preload('items', (itemQuery) => {
+          itemQuery.preload('product')
+          itemQuery.preload('market')
         })
         .orderBy('id', 'desc')
+
+      // Seller sadece kendi mağazasının siparişlerini görebilir
+      if (user.role === 'seller') {
+        const market = await EMarket.findBy('userId', user.id)
+        if (!market) {
+          return response.json({
+            message: 'Mağazanız bulunamadı',
+            data: [],
+            count: 0
+          })
+        }
+
+        // Sadece bu mağazaya ait ürünleri içeren siparişleri getir
+        query.whereHas('items', (itemQuery) => {
+          itemQuery.where('marketId', market.id)
+        })
+      }
+
+      const orders = await query
       
       return response.json({
         message: 'Siparişler listelendi',
@@ -36,8 +66,8 @@ export default class EOrdersController {
   }
 
   /**
-   * Sipariş detayı görüntüle (admin veya sipariş sahibi)
-   * GET /customer/orders/:id veya /admin/orders/:id
+   * Sipariş detayı görüntüle (admin, seller veya sipariş sahibi)
+   * GET /customer/orders/:id veya /admin/orders/:id veya /seller/orders/:id
    */
   public async show({ params, response }: HttpContext & { user?: any }) {
     const ctx = arguments[0] as any
@@ -61,6 +91,7 @@ export default class EOrdersController {
         .preload('address')
         .preload('items', (query) => {
           query.preload('product')
+          query.preload('market')
         })
         .first()
 
@@ -70,8 +101,45 @@ export default class EOrdersController {
         })
       }
 
-      // Yetki kontrolü: admin veya sipariş sahibi
-      if (user.role !== 'admin' && user.id !== order.userId) {
+      // Yetki kontrolü
+      if (user.role === 'admin') {
+        // Admin her şeyi görebilir
+      } else if (user.role === 'seller') {
+        // Seller sadece kendi mağazasının ürünlerini içeren siparişleri görebilir
+        const market = await EMarket.findBy('userId', user.id)
+        if (!market) {
+          return response.status(403).json({ 
+            message: 'Mağazanız bulunamadı' 
+          })
+        }
+
+        // Siparişte bu mağazaya ait ürün var mı kontrol et
+        const hasMarketItem = order.items.some(item => item.marketId === market.id)
+        if (!hasMarketItem) {
+          return response.status(403).json({ 
+            message: 'Bu siparişi görüntüleme yetkiniz yok' 
+          })
+        }
+
+        // ✅ Seller için sadece kendi mağazasının ürünlerini filtrele
+        // items'ı serialize ederken filtreleme yap
+        const filteredItems = order.items.filter(item => item.marketId === market.id)
+        
+        return response.json({
+          message: 'Sipariş detayı getirildi',
+          data: {
+            ...order.toJSON(),
+            items: filteredItems
+          }
+        })
+      } else if (user.role === 'customer') {
+        // Customer sadece kendi siparişini görebilir
+        if (user.id !== order.userId) {
+          return response.status(403).json({ 
+            message: 'Bu siparişi görüntüleme yetkiniz yok' 
+          })
+        }
+      } else {
         return response.status(403).json({ 
           message: 'Bu siparişi görüntüleme yetkiniz yok' 
         })
@@ -89,167 +157,6 @@ export default class EOrdersController {
       })
     }
   }
-
-  /**
-   * Customer: Yeni sipariş oluştur
-   * POST /customer/orders
-   */
-  // public async store({ request, response }: HttpContext & { user?: any }) {
-  //   const ctx = arguments[0] as any
-  //   const user = ctx.user
-
-  //   // Authentication kontrolü
-  //   if (!user) {
-  //     return response.status(401).json({ 
-  //       message: 'Oturum bulunamadı' 
-  //     })
-  //   }
-
-  //   // Request verilerini al
-  //   const { addressId, items } = request.only(['addressId', 'items'])
-
-  //   // Validasyon: Sipariş öğeleri kontrolü
-  //   if (!items || !Array.isArray(items) || items.length === 0) {
-  //     return response.status(400).json({ 
-  //       message: 'Sipariş öğeleri gerekli ve en az 1 ürün içermelidir' 
-  //     })
-  //   }
-
-  //   // Validasyon: Adres kontrolü
-  //   if (!addressId) {
-  //     return response.status(400).json({ 
-  //       message: 'Teslimat adresi seçilmelidir' 
-  //     })
-  //   }
-
-  //   try {
-  //     // Adresi bul ve kullanıcıya ait mi kontrol et
-  //     const address = await EAddress.find(addressId)
-  //     if (!address) {
-  //       return response.status(404).json({ 
-  //         message: 'Seçilen adres bulunamadı' 
-  //       })
-  //     }
-
-  //     if (address.userId !== user.id) {
-  //       return response.status(403).json({ 
-  //         message: 'Bu adres size ait değil' 
-  //       })
-  //     }
-
-  //     // Sipariş öğelerini doğrula ve toplam fiyat hesapla
-  //     let totalPrice = 0
-  //     const validatedOrderItems: Array<{
-  //       productId: number
-  //       quantity: number
-  //       unitPrice: number
-  //       totalPrice: number
-  //     }> = []
-
-  //     for (const item of items) {
-  //       // Item validasyonu
-  //       if (!item.productId || !item.quantity) {
-  //         return response.status(400).json({ 
-  //           message: 'Her ürün için productId ve quantity gereklidir' 
-  //         })
-  //       }
-
-  //       if (item.quantity <= 0) {
-  //         return response.status(400).json({ 
-  //           message: 'Ürün adedi 0\'dan büyük olmalıdır' 
-  //         })
-  //       }
-
-  //       // Ürünü bul
-  //       const product = await EProduct.find(item.productId)
-  //       if (!product) {
-  //         return response.status(404).json({ 
-  //           message: `Ürün bulunamadı (ID: ${item.productId})` 
-  //         })
-  //       }
-
-  //       // Ürün aktif mi kontrol et
-  //       if (!product.isActive) {
-  //         return response.status(400).json({ 
-  //           message: `${product.name} şu an satışta değil` 
-  //         })
-  //       }
-
-  //       // Stok kontrolü
-  //       if (product.stock < item.quantity) {
-  //         return response.status(400).json({ 
-  //           message: `${product.name} için yeterli stok yok. Mevcut stok: ${product.stock}, istenen: ${item.quantity}` 
-  //         })
-  //       }
-
-  //       // Fiyat hesapla
-  //       const itemTotalPrice = product.price * item.quantity
-  //       totalPrice += itemTotalPrice
-
-  //       validatedOrderItems.push({
-  //         productId: product.id,
-  //         quantity: parseInt(item.quantity),
-  //         unitPrice: product.price,
-  //         totalPrice: itemTotalPrice
-  //       })
-  //     }
-
-  //     // Transaction ile sipariş oluştur (atomik işlem)
-  //     const order = await db.transaction(async (trx) => {
-  //       // 1. Siparişi oluştur
-  //       const newOrder = await EOrder.create({
-  //         userId: user.id,
-  //         addressId: addressId,
-  //         totalPrice: totalPrice,
-  //         status: 'pending'
-  //       }, { client: trx })
-
-  //       // 2. Sipariş öğelerini ekle ve stokları güncelle
-  //       for (const item of validatedOrderItems) {
-  //         // Sipariş öğesini oluştur
-  //         await EOrderItem.create({
-  //           orderId: newOrder.id,
-  //           productId: item.productId,
-  //           quantity: item.quantity,
-  //           unitPrice: item.unitPrice,
-  //           totalPrice: item.totalPrice
-  //         }, { client: trx })
-
-  //         // Stok güncelle
-  //         const product = await EProduct.find(item.productId, { client: trx })
-  //         if (product) {
-  //           product.stock -= item.quantity
-  //           await product.save({ client: trx })
-  //         }
-  //       }
-
-  //       return newOrder
-  //     })
-
-  //     // Sipariş detaylarını yükle
-  //     // order -> items -> product
-  //     // items tablosundan bu order'a ait olanları bul getir.#controllers
-  //     // her bir item içinde product var, her biri içinde o product'ı getir
-
-
-  //     await order.load('items', (query) => {
-  //       query.preload('product')
-  //     })
-
-  //     await order.load('address')
-
-  //     return response.status(201).json({
-  //       message: 'Sipariş başarıyla oluşturuldu',
-  //       data: order
-  //     })
-  //   } catch (error) {
-  //     console.error('Order create error:', error)
-  //     return response.status(500).json({
-  //       message: 'Sipariş oluşturulurken hata oluştu',
-  //       error: String(error)
-  //     })
-  //   }
-  // }
 
   /**
    * Customer: Kendi siparişlerini listele
@@ -273,6 +180,7 @@ export default class EOrdersController {
         .preload('address')
         .preload('items', (query) => {
           query.preload('product')
+          query.preload('market')
         })
         .orderBy('id', 'desc')
 
@@ -291,17 +199,17 @@ export default class EOrdersController {
   }
 
   /**
-   * Admin: Sipariş durumunu güncelle
-   * POST /admin/orders/:id/update-status
+   * Admin veya Seller: Sipariş durumunu güncelle
+   * POST /admin/orders/:id/update-status veya /seller/orders/:id/update-status
    */
   public async updateStatus({ params, request, response }: HttpContext & { user?: any }) {
     const ctx = arguments[0] as any
     const user = ctx.user
 
-    // Admin kontrolü
-    if (!user || user.role !== 'admin') {
+    // Yetki kontrolü
+    if (!user || (user.role !== 'admin' && user.role !== 'seller')) {
       return response.status(403).json({ 
-        message: 'Admin yetkisi gerekli' 
+        message: 'Admin veya Seller yetkisi gerekli' 
       })
     }
 
@@ -327,11 +235,41 @@ export default class EOrdersController {
 
     try {
       // Siparişi bul
-      const order = await EOrder.find(orderId)
+      const order = await EOrder.query()
+        .where('id', orderId)
+        .preload('items')
+        .first()
+
       if (!order) {
         return response.status(404).json({ 
           message: 'Sipariş bulunamadı' 
         })
+      }
+
+      // Seller için ek kontrol
+      if (user.role === 'seller') {
+        const market = await EMarket.findBy('userId', user.id)
+        if (!market) {
+          return response.status(403).json({ 
+            message: 'Mağazanız bulunamadı' 
+          })
+        }
+
+        // Siparişte bu mağazaya ait ürün var mı kontrol et
+        const hasMarketItem = order.items.some(item => item.marketId === market.id)
+        if (!hasMarketItem) {
+          return response.status(403).json({ 
+            message: 'Bu siparişin durumunu güncelleme yetkiniz yok' 
+          })
+        }
+
+        // Seller sadece belirli durumları güncelleyebilir
+        const sellerAllowedStatuses = ['shipped']
+        if (!sellerAllowedStatuses.includes(status)) {
+          return response.status(403).json({ 
+            message: 'Seller sadece siparişi "shipped" (kargoya verildi) durumuna geçirebilir' 
+          })
+        }
       }
 
       // Durumu güncelle
@@ -344,6 +282,7 @@ export default class EOrdersController {
       await order.load('address')
       await order.load('items', (query) => {
         query.preload('product')
+        query.preload('market')
       })
 
       return response.json({
@@ -354,6 +293,65 @@ export default class EOrdersController {
       console.error('Order status update error:', error)
       return response.status(500).json({
         message: 'Sipariş durumu güncellenirken hata oluştu',
+        error: String(error)
+      })
+    }
+  }
+
+  /**
+   * Seller: Kendi mağazasının siparişlerini listele
+   * GET /seller/orders
+   */
+  public async sellerOrders({ response }: HttpContext & { user?: any }) {
+    const ctx = arguments[0] as any
+    const user = ctx.user
+
+    if (!user) {
+      return response.status(401).json({ 
+        message: 'Oturum bulunamadı' 
+      })
+    }
+
+    if (user.role !== 'seller') {
+      return response.status(403).json({ 
+        message: 'Seller yetkisi gerekli' 
+      })
+    }
+
+    try {
+      const market = await EMarket.findBy('userId', user.id)
+      if (!market) {
+        return response.json({
+          message: 'Mağazanız bulunamadı',
+          data: [],
+          count: 0
+        })
+      }
+
+      // Sadece bu mağazaya ait ürünleri içeren siparişleri getir
+      const orders = await EOrder.query()
+        .whereNot('status', 'cart')
+        .whereHas('items', (itemQuery) => {
+          itemQuery.where('marketId', market.id)
+        })
+        .preload('user')
+        .preload('address')
+        .preload('items', (itemQuery) => {
+          itemQuery.where('marketId', market.id)
+          itemQuery.preload('product')
+          itemQuery.preload('market')
+        })
+        .orderBy('id', 'desc')
+
+      return response.json({
+        message: 'Mağazanızın siparişleri',
+        data: orders,
+        count: orders.length
+      })
+    } catch (error) {
+      console.error('Seller orders error:', error)
+      return response.status(500).json({
+        message: 'Siparişler listelenirken hata oluştu',
         error: String(error)
       })
     }

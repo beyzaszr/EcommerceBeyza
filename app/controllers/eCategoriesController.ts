@@ -43,7 +43,15 @@ export default class ECategoriesController {
    * Yeni kategori oluştur
    * POST /admin/categories
    */
-  public async E_store({ request, response, user}: HttpContext & { user: any }) {
+  public async E_store({ request, response}: HttpContext & { user: any }) {
+    const ctx = arguments[0] as any
+    const user = ctx.user
+
+    if (!user) {
+      return response.status(401).json({ 
+        message: 'Oturum bulunamadı' 
+      })
+    }
     // Request verilerini al
     const { name, isActive } = request.only(['name', 'isActive'])
 
@@ -67,7 +75,7 @@ export default class ECategoriesController {
 
       // Seller ise marketini bul ve ID'sini ata
       if (user.role === 'seller') {
-        const market = await EMarket.findBy('user_id', user.id)
+        const market = await EMarket.findBy('userId', user.id)
         if (!market) return response.status(403).json({ message: 'Mağazanız bulunamadı' })
         marketId = market.id
       }

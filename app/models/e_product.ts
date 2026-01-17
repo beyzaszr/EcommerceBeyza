@@ -18,19 +18,19 @@ export default class EProduct extends BaseModel {
   declare marketId: number | null
 
   @column()
-  public name: string
+  declare name: string
 
   @column()
-  public description: string | null
+  declare description: string | null
 
   @column()
-  public price: number
+  declare price: number
 
   @column()
-  public stock: number
+  declare stock: number
 
   @column()
-  public isActive: boolean
+  declare isActive: boolean
 
   // Mağaza ilişkisi
   @belongsTo(() => EMarket, {

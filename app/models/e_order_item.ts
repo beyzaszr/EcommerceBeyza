@@ -13,19 +13,19 @@ export default class EOrderItem extends BaseModel {
   declare id: number
 
   @column()
-  public orderId: number
+  declare orderId: number
 
   @column()
-  public productId: number
+  declare productId: number
 
   @column()
-  public quantity: number
+  declare quantity: number
 
   @column()
-  public unitPrice: number
+  declare unitPrice: number
 
   @column()
-  public totalPrice: number
+  declare totalPrice: number
 
   @column()
   declare marketId: number | null
@@ -35,7 +35,7 @@ export default class EOrderItem extends BaseModel {
   })
   declare order: BelongsTo<typeof EOrder>
 
-  // DEĞİŞİKLİK: foreignKey: 'productId' eklendi
+  // foreignKey: 'productId'
   @belongsTo(() => EProduct, {
     foreignKey: 'productId'
   })

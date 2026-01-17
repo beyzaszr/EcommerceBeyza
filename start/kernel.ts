@@ -72,7 +72,7 @@ server.use([
   () => import('#middleware/container_bindings_middleware'),
   () => import('#middleware/force_json_response_middleware'),
   () => import('@adonisjs/cors/cors_middleware'),
-  () => import('#middleware/bearer_auth_middleware')
+  () => import('#middleware/bearer_auth_middleware'),
 ])
 
 router.use([() => import('@adonisjs/core/bodyparser_middleware')])
@@ -82,7 +82,9 @@ const __adonis_middleware =
   (globalThis as any).__adonis_middleware__ ||
   router.named({
     admin: () => import('#middleware/admin_middleware'),
+    seller: () => import('#middleware/seller_middleware'),
+    adminOrSeller: () => import('#middleware/admin_or_seller_middleware'),
   })
 
-;(globalThis as any).__adonis_middleware__ = __adonis_middleware
+  ; (globalThis as any).__adonis_middleware__ = __adonis_middleware
 export { __adonis_middleware as middleware }

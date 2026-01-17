@@ -11,16 +11,16 @@ export default class EOrder extends BaseModel {
   declare id: number
 
   @column()
-  public userId: number
+  declare userId: number
 
   @column()
-  public addressId: number | null
+  declare addressId: number | null
 
   @column()
-  public totalPrice: number
+  declare totalPrice: number
 
   @column()
-  public status: 'cart' | 'pending' | 'paid' | 'canceled' | 'shipped'
+  declare status: 'cart' | 'pending' | 'paid' | 'canceled' | 'shipped'
 
  @belongsTo(() => EUser, {
     foreignKey: 'userId'
